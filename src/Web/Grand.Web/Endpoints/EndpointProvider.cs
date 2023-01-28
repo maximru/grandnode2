@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Grand.Web.Endpoints
 {
-    public partial class EndpointProvider : IEndpointProvider
+    public class EndpointProvider : IEndpointProvider
     {
         public void RegisterEndpoint(IEndpointRouteBuilder endpointRouteBuilder)
         {
@@ -113,7 +113,7 @@ namespace Grand.Web.Endpoints
                             pattern + "account/checkusernameavailability",
                             new { controller = "Account", action = "CheckUsernameAvailability" });
 
-            //passwordrecovery
+            //password recovery
             endpointRouteBuilder.MapControllerRoute("PasswordRecovery",
                             pattern + "passwordrecovery",
                             new { controller = "Account", action = "PasswordRecovery" });
@@ -326,12 +326,7 @@ namespace Grand.Web.Endpoints
             //contact us
             endpointRouteBuilder.MapControllerRoute("ContactUs",
                             pattern + "contactus",
-                            new { controller = "Common", action = "ContactUs" });
-
-            //interactive form
-            endpointRouteBuilder.MapControllerRoute("PopupInteractiveForm",
-                            pattern + "popupinteractiveform",
-                            new { controller = "Common", action = "PopupInteractiveForm" });
+                            new { controller = "Contact", action = "ContactUs" });
 
             //change currency 
             endpointRouteBuilder.MapControllerRoute("ChangeCurrency",
@@ -372,7 +367,7 @@ namespace Grand.Web.Endpoints
             // contact attributes with "upload file" type
             endpointRouteBuilder.MapControllerRoute("UploadFileContactAttribute",
                             pattern + "uploadfilecontactattribute/{attributeId}",
-                            new { controller = "Common", action = "UploadFileContactAttribute" });
+                            new { controller = "Contact", action = "UploadFileContactAttribute" });
 
             //CurrentPosition Save
             endpointRouteBuilder.MapControllerRoute("CurrentPosition",
@@ -456,13 +451,7 @@ namespace Grand.Web.Endpoints
 
         private void RegisterCmsRoute(IEndpointRouteBuilder endpointRouteBuilder, string pattern)
         {
-
-            //widgets
-            endpointRouteBuilder.MapControllerRoute("WidgetsByZone",
-                            $"{pattern}widgetsbyzone/",
-                            new { controller = "Widget", action = "WidgetsByZone" });
-
-            //knowledgebase
+            //knowledge base
             endpointRouteBuilder.MapControllerRoute("Knowledgebase",
                             pattern + "knowledgebase",
                             new { controller = "Knowledgebase", action = "List" });
@@ -537,6 +526,16 @@ namespace Grand.Web.Endpoints
             endpointRouteBuilder.MapControllerRoute("ShoppingCart",
                             $"{pattern}cart/",
                             new { controller = "ShoppingCart", action = "Cart" });
+
+            //shopping cart summary
+            endpointRouteBuilder.MapControllerRoute("ShoppingCartSummary",
+                            $"{pattern}cart/summary/",
+                            new { controller = "ShoppingCart", action = "CartSummary" });
+
+            //shopping cart total
+            endpointRouteBuilder.MapControllerRoute("ShoppingCartTotal",
+                            $"{pattern}cart/total/",
+                            new { controller = "ShoppingCart", action = "CartTotal" });
 
             //Continue shopping
             endpointRouteBuilder.MapControllerRoute("ContinueShopping",
@@ -769,9 +768,7 @@ namespace Grand.Web.Endpoints
 
             endpointRouteBuilder.MapControllerRoute("InstallChangeLanguage", "installchangelanguage",
                             new { controller = "Install", action = "ChangeLanguage" });
-            //upgrade
-            endpointRouteBuilder.MapControllerRoute("Upgrade", "upgrade",
-                            new { controller = "Upgrade", action = "Index" });
+           
         }
     }
 }

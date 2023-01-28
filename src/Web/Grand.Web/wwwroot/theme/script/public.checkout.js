@@ -35,8 +35,9 @@ var vmorder = new Vue({
             LoyaltyPointsEnoughToPayForOrder: null,
             UseLoyaltyPoints: null,
             // payment info
-            PaymentViewComponentName: null,
+            PaymentUrl: null,
             // confirm order
+            OrderReviewData: null,
             MinOrderTotalWarning: null,
             TermsOfServiceOnOrderConfirmPage: null,
             ConfirmWarnings: null,
@@ -45,6 +46,7 @@ var vmorder = new Vue({
             acceptTerms: false,
             // checkout steps methods
             Checkout: null,
+            vCartUrl: null,
             vShipping: null,
             vBilling: null,
             vShippingMethod: null,
@@ -105,6 +107,17 @@ var vmorder = new Vue({
             setTimeout(function () {
                 button.classList.remove('disabled');
             }, 600);
+        },
+        vmShipping() {
+            this.vShipping = {
+                form: false,
+                saveUrl: false,
+
+                init: function (form, saveUrl) {
+                    this.form = form;
+                    this.saveUrl = saveUrl;
+                },
+            }
         },
         vmCheckout() {
             this.Checkout = {
@@ -206,7 +219,7 @@ var vmorder = new Vue({
                                 } else {
                                     index = 0;
                                 }
-                                var elem = model.ShippingMethods[index].Name + '___' + model.ShippingMethods[index].ShippingRateProviderSystemName;
+                                var elem = model.ShippingMethods[index].Name + ':' + model.ShippingMethods[index].ShippingRateProviderSystemName;
                                 vmorder.loadPartialView(elem);
                             }
                             vmorder.updateTotals();
@@ -226,19 +239,20 @@ var vmorder = new Vue({
                         }
                         if (response.data.goto_section == "payment_info") {
                             var model = response.data.update_section.model;
-                            vmorder.PaymentViewComponentName = model.PaymentViewComponentName;
+                            vmorder.PaymentUrl = model.PaymentUrl;
                             vmorder.PaymentInfo = true;
                             vmorder.paymentBusy = true;
                             vmorder.validPayment = true;
                             document.querySelector(".payment-info-next-step-button").classList.add("disabled");
                             axios({
-                                baseURL: '/Component/Index?Name=' + model.PaymentViewComponentName,
+                                baseURL: model.PaymentUrl,
                                 method: 'get',
                                 data: null,
                                 headers: {
                                     'Accept': 'application/json',
                                     'Content-Type': 'application/json',
-                                }
+                                },
+                                showLoader: false
                             }).then(response => {
                                 vmorder.paymentBusy = false;
                                 var html = response.data;
@@ -249,9 +263,7 @@ var vmorder = new Vue({
                                 }
                             }).then(function () {
                                 document.querySelector(".payment-info-next-step-button").classList.remove("disabled");
-                            });
-
-                            this.updateOrderSummary(false);
+                            });                            
                             vmorder.updateTotals();
 
                         }
@@ -259,10 +271,8 @@ var vmorder = new Vue({
                             var model = response.data.update_section.model;
                             vmorder.MinOrderTotalWarning = model.MinOrderTotalWarning;
                             vmorder.ConfirmWarnings = model.Warnings;
-
+                            vmorder.OrderReviewData = model.OrderReviewData;
                             vmorder.Confirm = true;
-
-                            this.updateOrderSummary(true);
                             vmorder.updateTotals();
                         }
 
@@ -292,23 +302,20 @@ var vmorder = new Vue({
                     }
                     return false;
                 },
-                updateOrderSummary: function (displayOrderReviewData) {
-                    axios({
-                        baseURL: '/Component/Index?Name=OrderSummary',
-                        method: 'post',
-                        data: {
-                            prepareAndDisplayOrderReviewData: displayOrderReviewData,
-                        },
-                        headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json',
-                            'X-Response-View': 'Json'
-                        }
-                    }).then(response => {
-                        vmorder.cart.OrderReviewData = response.data.OrderReviewData
-                    });
-                },
             };
+        },
+        vmCartUrl(){
+            this.vCartUrl = {
+                urlCartSummary: false,
+                urlCartTotal: false,
+
+                init: function (urlCartSummary, urlCartTotal) {
+                    this.urlCartSummary = urlCartSummary;
+                    this.urlCartTotal = urlCartTotal;
+                    vmorder.updateCart();
+                    vmorder.updateTotals();
+                },
+            }
         },
         vmShipping() {
             this.vShipping = {
@@ -339,13 +346,13 @@ var vmorder = new Vue({
                 save: function () {
                     if (vmorder.Checkout.loadWaiting != false) return;
                     vmorder.Checkout.setLoadWaiting('shipping');
-
                     var form = document.querySelector(this.form);
                     var data = new FormData(form);
                     axios({
                         url: this.saveUrl,
                         method: 'post',
                         data: data,
+                        showLoader: false
                     }).then(function (response) {
                         if (response.data.goto_section !== undefined) {
                             if (!(response.data.update_section.name == "shipping")) {
@@ -425,6 +432,7 @@ var vmorder = new Vue({
                         url: this.saveUrl,
                         method: 'post',
                         data: data,
+                        showLoader: false
                     }).then(function (response) {
                         if (document.querySelector('#back-' + response.data.goto_section)) {
                             vmorder.previousStep.push('buttonBilling');
@@ -502,6 +510,7 @@ var vmorder = new Vue({
                             url: this.saveUrl,
                             method: 'post',
                             data: data,
+                            showLoader: false
                         }).then(function (response) {
                             if (response.data.error !== undefined) {
                                 vmorder.ShippingMethodError = response.data.message;
@@ -583,6 +592,7 @@ var vmorder = new Vue({
                             url: this.saveUrl,
                             method: 'post',
                             data: data,
+                            showLoader: false
                         }).then(function (response) {
                             if (response.data.goto_section !== undefined) {
                                 vmorder.vPaymentMethod.nextStep(response);
@@ -640,6 +650,7 @@ var vmorder = new Vue({
                             url: this.saveUrl,
                             method: 'post',
                             data: data,
+                            showLoader: false
                         }).then(function (response) {
                             if (response.data.goto_section !== undefined) {
                                 vmorder.previousStep.push('buttonPaymentInfo');
@@ -647,13 +658,14 @@ var vmorder = new Vue({
                             }
                             if (response.data.update_section !== undefined && response.data.update_section.name == 'payment-info') {
                                 var model = response.data.update_section.model;
-                                vm.PaymentViewComponentName = model.PaymentViewComponentName,
+                                vm.PaymentUrl = model.PaymentUrl,
                                     vm.PaymentInfo = true;
 
                                 axios({
-                                    baseURL: '/Component/Form?Name=' + model.PaymentViewComponentName,
+                                    baseURL: model.PaymentUrl,
                                     method: 'post',
                                     data: data,
+                                    showLoader: false
                                 }).then(response => {
                                     var html = response.data;
                                     document.querySelector('.payment-info .info').innerHTML = html;
@@ -694,7 +706,7 @@ var vmorder = new Vue({
                 saveUrl: false,
                 isSuccess: false,
 
-                init: function (saveUrl, successUrl) {
+                init: function (saveUrl,  successUrl) {
                     this.saveUrl = saveUrl;
                     this.successUrl = successUrl;
                 },
@@ -709,6 +721,7 @@ var vmorder = new Vue({
                         axios({
                             url: this.saveUrl,
                             method: 'post',
+                            showLoader: false
                         }).then(function (response) {
                             vmorder.vConfirmOrder.nextStep(response);
                         }).catch(function (error) {
@@ -757,28 +770,28 @@ var vmorder = new Vue({
         },
         updateCart() {
             axios({
-                baseURL: '/Component/Index?Name=OrderSummary',
+                baseURL: this.vCartUrl.urlCartSummary,
                 method: 'get',
                 data: null,
                 headers: {
                     'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                    'X-Response-View': 'Json'
-                }
+                    'Content-Type': 'application/json'
+                },
+                showLoader: false
             }).then(response => {
                 this.cart = response.data;
             })
         },
         updateTotals() {
             axios({
-                baseURL: '/Component/Index?Name=OrderTotals',
+                baseURL: this.vCartUrl.urlCartTotal,
                 method: 'get',
                 data: null,
                 headers: {
                     'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                    'X-Response-View': 'Json'
-                }
+                    'Content-Type': 'application/json'
+                },
+                showLoader: false
             }).then(response => {
                 this.totals = response.data;
             });
@@ -822,6 +835,7 @@ var vmorder = new Vue({
             axios({
                 url: url,
                 method: 'post',
+                showLoader: false
             }).then(function (response) {
                 vmorder.shippingBusy = false;
                 document.getElementById('shipping_form').innerHTML = response.data;
@@ -842,6 +856,7 @@ var vmorder = new Vue({
         }
     },
     created() {
+        this.vmCartUrl();
         this.vmCheckout();
         this.vmShipping();
         this.vmBilling();
@@ -849,8 +864,6 @@ var vmorder = new Vue({
         this.vmPaymentMethod();
         this.vmPaymentInfo();
         this.vmConfirmOrder();
-        this.updateCart();
-        this.updateTotals();
         this.cartView();
         this.otherScripts();
     },

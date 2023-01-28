@@ -1,4 +1,5 @@
 ﻿using Grand.Domain.Customers;
+using Grand.Domain.Discounts;
 using Grand.Domain.Stores;
 
 namespace Grand.Business.Core.Utilities.Catalog
@@ -6,17 +7,17 @@ namespace Grand.Business.Core.Utilities.Catalog
     /// <summary>
     /// Represents a discount requirement validation request
     /// </summary>
-    public partial class DiscountRuleValidationRequest
+    public class DiscountRuleValidationRequest
     {
         /// <summary>
-        /// Gets or sets the appropriate discount requirement ID (identifier)
+        /// Gets or sets the discount 
         /// </summary>
-        public string DiscountRequirementId { get; set; }
+        public Discount Discount { get; set; }
 
         /// <summary>
-        /// Gets or sets the discount ID (identifier)
+        /// Gets or sets the discount rule
         /// </summary>
-        public string DiscountId { get; set; }
+        public DiscountRule DiscountRule { get; set; }
 
         /// <summary>
         /// Gets or sets the customer

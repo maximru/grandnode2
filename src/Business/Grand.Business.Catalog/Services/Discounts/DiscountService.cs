@@ -20,7 +20,7 @@ namespace Grand.Business.Catalog.Services.Discounts
     /// <summary>
     /// Discount service
     /// </summary>
-    public partial class DiscountService : IDiscountService
+    public class DiscountService : IDiscountService
     {
 
         #region Fields
@@ -74,7 +74,7 @@ namespace Grand.Business.Catalog.Services.Discounts
         /// <returns>Discount</returns>
         public virtual Task<Discount> GetDiscountById(string discountId)
         {
-            string key = string.Format(CacheKey.DISCOUNTS_BY_ID_KEY, discountId);
+            var key = string.Format(CacheKey.DISCOUNTS_BY_ID_KEY, discountId);
             return _cacheBase.GetAsync(key, () => _discountRepository.GetByIdAsync(discountId));
         }
 
@@ -85,7 +85,7 @@ namespace Grand.Business.Catalog.Services.Discounts
         public virtual async Task<IList<Discount>> GetAllDiscounts(DiscountType? discountType,
             string storeId = "", string currencyCode = "", string couponCode = "", string discountName = "", bool showHidden = false)
         {
-            string key = string.Format(CacheKey.DISCOUNTS_ALL_KEY, showHidden, storeId, currencyCode, couponCode, discountName);
+            var key = string.Format(CacheKey.DISCOUNTS_ALL_KEY, showHidden, storeId, currencyCode, couponCode, discountName);
             var result = await _cacheBase.GetAsync(key, async () =>
             {
                 var query = from m in _discountRepository.Table
@@ -107,9 +107,9 @@ namespace Grand.Business.Catalog.Services.Discounts
                 }
                 if (!string.IsNullOrEmpty(couponCode))
                 {
-                    var _coupon = _discountCouponRepository.Table.FirstOrDefault(x => x.CouponCode == couponCode);
-                    if (_coupon != null)
-                        query = query.Where(d => d.Id == _coupon.DiscountId);
+                    var coupon = _discountCouponRepository.Table.FirstOrDefault(x => x.CouponCode == couponCode);
+                    if (coupon != null)
+                        query = query.Where(d => d.Id == coupon.DiscountId);
                 }
                 if (!string.IsNullOrEmpty(discountName))
                 {
@@ -157,11 +157,6 @@ namespace Grand.Business.Catalog.Services.Discounts
             if (discount == null)
                 throw new ArgumentNullException(nameof(discount));
 
-            foreach (var req in discount.DiscountRules)
-            {
-                req.DiscountId = discount.Id;
-            }
-
             await _discountRepository.UpdateAsync(discount);
 
             await _cacheBase.RemoveByPrefix(CacheKey.DISCOUNTS_PATTERN_KEY);
@@ -179,9 +174,9 @@ namespace Grand.Business.Catalog.Services.Discounts
             if (discount == null)
                 throw new ArgumentNullException(nameof(discount));
 
-            var usagehistory = await GetAllDiscountUsageHistory(discount.Id);
-            if (usagehistory.Count > 0)
-                throw new ArgumentNullException("discount was used and have a history");
+            var usageHistory = await GetAllDiscountUsageHistory(discount.Id);
+            if (usageHistory.Count > 0)
+                throw new ArgumentNullException("Discount was used and have a history");
 
             await _discountRepository.DeleteAsync(discount);
 
@@ -192,43 +187,18 @@ namespace Grand.Business.Catalog.Services.Discounts
         }
 
         /// <summary>
-        /// Delete discount requirement
+        /// Load discount provider by rule system name
         /// </summary>
-        /// <param name="discountRequirement">Discount requirement</param>
-        public virtual async Task DeleteDiscountRequirement(DiscountRule discountRequirement)
-        {
-            if (discountRequirement == null)
-                throw new ArgumentNullException(nameof(discountRequirement));
-
-            var discount = await _discountRepository.GetByIdAsync(discountRequirement.DiscountId);
-            if (discount == null)
-                throw new ArgumentNullException(nameof(discount));
-            var req = discount.DiscountRules.FirstOrDefault(x => x.Id == discountRequirement.Id);
-            if (req == null)
-                throw new ArgumentNullException(nameof(req));
-
-            discount.DiscountRules.Remove(req);
-            await UpdateDiscount(discount);
-
-            await _cacheBase.RemoveByPrefix(CacheKey.DISCOUNTS_PATTERN_KEY);
-
-            //event notification
-            await _mediator.EntityDeleted(discountRequirement);
-        }
-
-        /// <summary>
-        /// Load discount by system name
-        /// </summary>
-        /// <param name="systemName">System name</param>
+        /// <param name="ruleSystemName">Rule system name</param>
         /// <returns>Found discount</returns>
-        public virtual IDiscountProvider LoadDiscountProviderBySystemName(string systemName)
+        public virtual IDiscountProvider LoadDiscountProviderByRuleSystemName(string ruleSystemName)
         {
             var discountPlugins = LoadAllDiscountProviders();
             foreach (var discountPlugin in discountPlugins)
             {
                 var rules = discountPlugin.GetRequirementRules();
 
-                if (!rules.Any(x => x.SystemName == systemName))
+                if (!rules.Any(x => x.SystemName.Equals(ruleSystemName, StringComparison.OrdinalIgnoreCase)))
                     continue;
                 return discountPlugin;
             }
@@ -253,7 +223,7 @@ namespace Grand.Business.Catalog.Services.Discounts
         /// <returns>Discount</returns>
         public virtual async Task<Discount> GetDiscountByCouponCode(string couponCode, bool showHidden = false)
         {
-            if (String.IsNullOrWhiteSpace(couponCode))
+            if (string.IsNullOrWhiteSpace(couponCode))
                 return null;
 
             var query = _discountCouponRepository.Table.Where(x => x.CouponCode == couponCode).ToList();
@@ -271,10 +241,11 @@ namespace Grand.Business.Catalog.Services.Discounts
         /// </summary>
         /// <param name="couponCode"></param>
         /// <param name="discountId"></param>
+        /// <param name="used"></param>
         /// <returns></returns>
         public virtual async Task<bool> ExistsCodeInDiscount(string couponCode, string discountId, bool? used)
         {
-            if (String.IsNullOrWhiteSpace(couponCode))
+            if (string.IsNullOrWhiteSpace(couponCode))
                 return false;
 
             var query = _discountCouponRepository.Table.Where(x => x.CouponCode == couponCode
@@ -285,10 +256,7 @@ namespace Grand.Business.Catalog.Services.Discounts
 
             var result = await Task.FromResult(query.ToList());
 
-            if (result.Any())
-                return true;
-            else
-                return false;
+            return result.Any();
         }
 
         /// <summary>
@@ -314,7 +282,6 @@ namespace Grand.Business.Catalog.Services.Discounts
         /// <summary>
         /// Gets a discount
         /// </summary>
-        /// <param name="discountId">Discount identifier</param>
         /// <returns>Discount</returns>
         public virtual Task<DiscountCoupon> GetDiscountCodeById(string id)
         {
@@ -324,9 +291,9 @@ namespace Grand.Business.Catalog.Services.Discounts
         /// <summary>
         /// Get discount code by discount code
         /// </summary>
-        /// <param name="code"></param>
+        /// <param name="couponCode">Coupon code</param>
         /// <returns></returns>
-        public async Task<DiscountCoupon> GetDiscountCodeByCode(string couponCode)
+        public virtual async Task<DiscountCoupon> GetDiscountCodeByCode(string couponCode)
         {
             var query = await Task.FromResult(_discountCouponRepository.Table.Where(x => x.CouponCode == couponCode).ToList());
             return query.FirstOrDefault();
@@ -354,7 +321,8 @@ namespace Grand.Business.Catalog.Services.Discounts
         /// <summary>
         /// Update discount code - set as used or not
         /// </summary>
-        /// <param name="coupon"></param>
+        /// <param name="couponCode"></param>
+        /// <param name="used"></param>
         public virtual async Task DiscountCouponSetAsUsed(string couponCode, bool used)
         {
             if (string.IsNullOrEmpty(couponCode))
@@ -365,7 +333,7 @@ namespace Grand.Business.Catalog.Services.Discounts
             {
                 if (used)
                 {
-                    coupon.Used = used;
+                    coupon.Used = true;
                     coupon.Qty++;
                 }
                 else
@@ -421,13 +389,12 @@ namespace Grand.Business.Catalog.Services.Discounts
         /// <returns>Discount validation result</returns>
         public virtual async Task<DiscountValidationResult> ValidateDiscount(Discount discount, Customer customer, Currency currency, string couponCodeToValidate)
         {
-            if (!String.IsNullOrEmpty(couponCodeToValidate))
+            if (!string.IsNullOrEmpty(couponCodeToValidate))
             {
-                return await ValidateDiscount(discount, customer, currency, new string[] { couponCodeToValidate });
+                return await ValidateDiscount(discount, customer, currency, new[] { couponCodeToValidate });
             }
-            else
-                return await ValidateDiscount(discount, customer, currency, new string[0]);
 
+            return await ValidateDiscount(discount, customer, currency, Array.Empty<string>());
         }
 
         /// <summary>
@@ -453,7 +420,7 @@ namespace Grand.Business.Catalog.Services.Discounts
                 return result;
 
             //do not allow use discount in the current store
-            if (discount.LimitedToStores && !discount.Stores.Any(x => _workContext.CurrentStore.Id == x))
+            if (discount.LimitedToStores && discount.Stores.All(x => _workContext.CurrentStore.Id != x))
             {
                 result.UserError = _translationService.GetResource("ShoppingCart.Discount.CannotBeUsedInStore");
                 return result;
@@ -469,27 +436,22 @@ namespace Grand.Business.Catalog.Services.Discounts
                 {
                     if (discount.Reused)
                     {
-                        if (await ExistsCodeInDiscount(item, discount.Id, null))
-                        {
-                            result.CouponCode = item;
-                            exists = true;
-                        }
+                        if (!await ExistsCodeInDiscount(item, discount.Id, null)) continue;
+                        result.CouponCode = item;
+                        exists = true;
                     }
                     else
                     {
-                        if (await ExistsCodeInDiscount(item, discount.Id, false))
-                        {
-                            result.CouponCode = item;
-                            exists = true;
-                        }
+                        if (!await ExistsCodeInDiscount(item, discount.Id, false)) continue;
+                        result.CouponCode = item;
+                        exists = true;
                     }
                 }
                 if (!exists)
                     return result;
             }
 
-            if (discount.DiscountTypeId == DiscountType.AssignedToOrderSubTotal ||
-                discount.DiscountTypeId == DiscountType.AssignedToOrderTotal)
+            if (discount.DiscountTypeId is DiscountType.AssignedToOrderSubTotal or DiscountType.AssignedToOrderTotal)
             {
                 var cart = customer.ShoppingCartItems
                     .Where(sci => sci.ShoppingCartTypeId == ShoppingCartType.ShoppingCart)
@@ -549,11 +511,11 @@ namespace Grand.Business.Catalog.Services.Discounts
             }
 
             //discount requirements
-            var requirements = discount.DiscountRules.ToList();
-            foreach (var req in requirements)
+            var discountRules = discount.DiscountRules.ToList();
+            foreach (var rule in discountRules)
             {
                 //load a plugin
-                var discountRequirementPlugin = LoadDiscountProviderBySystemName(req.DiscountRequirementRuleSystemName);
+                var discountRequirementPlugin = LoadDiscountProviderByRuleSystemName(rule.DiscountRequirementRuleSystemName);
 
                 if (discountRequirementPlugin == null)
                     continue;
@@ -563,19 +525,18 @@ namespace Grand.Business.Catalog.Services.Discounts
 
                 var ruleRequest = new DiscountRuleValidationRequest
                 {
-                    DiscountRequirementId = req.Id,
-                    DiscountId = req.DiscountId,
+                    DiscountRule = rule,
+                    Discount = discount,
                     Customer = customer,
                     Store = _workContext.CurrentStore
                 };
-
-                var singleRequirementRule = discountRequirementPlugin.GetRequirementRules().Single(x => x.SystemName == req.DiscountRequirementRuleSystemName);
+                var singleRequirementRule = discountRequirementPlugin.GetRequirementRules().FirstOrDefault(x => x.SystemName.Equals(rule.DiscountRequirementRuleSystemName, StringComparison.OrdinalIgnoreCase));
+                if (singleRequirementRule == null) return result;
                 var ruleResult = await singleRequirementRule.CheckRequirement(ruleRequest);
-                if (!ruleResult.IsValid)
-                {
-                    result.UserError = ruleResult.UserError;
-                    return result;
-                }
+                if (ruleResult.IsValid) continue;
+                result.UserError = ruleResult.UserError;
+
+                return result;
             }
 
             result.IsValid = true;
@@ -598,6 +559,7 @@ namespace Grand.Business.Catalog.Services.Discounts
         /// <param name="discountId">Discount identifier; use null to load all records</param>
         /// <param name="customerId">Customer identifier; use null to load all records</param>
         /// <param name="orderId">Order identifier; null to load all records</param>
+        /// <param name="canceled">Canceled</param>
         /// <param name="pageIndex">Page index</param>
         /// <param name="pageSize">Page size</param>
         /// <returns>Discount usage history records</returns>
@@ -632,11 +594,10 @@ namespace Grand.Business.Catalog.Services.Discounts
 
             await _discountUsageHistoryRepository.InsertAsync(discountUsageHistory);
 
-            //Support for couponcode
+            //Support for coupon code
             await DiscountCouponSetAsUsed(discountUsageHistory.CouponCode, true);
-
+            //clear cache
             await _cacheBase.RemoveByPrefix(CacheKey.DISCOUNTS_PATTERN_KEY);
-
             //event notification
             await _mediator.EntityInserted(discountUsageHistory);
         }
@@ -684,17 +645,17 @@ namespace Grand.Business.Catalog.Services.Discounts
         /// <param name="currency">currency</param>
         /// <param name="customer">Customer</param>
         /// <param name="product">Product</param>
-        public async Task<double> GetDiscountAmount(Discount discount, Customer customer, Currency currency, Product product, double amount)
+        public virtual async Task<double> GetDiscountAmount(Discount discount, Customer customer, Currency currency, Product product, double amount)
         {
             if (discount == null)
                 throw new ArgumentNullException(nameof(discount));
 
             //calculate discount amount
-            double result = 0;
+            double result;
             if (!discount.CalculateByPlugin)
             {
                 if (discount.UsePercentage)
-                    result = (double)((((float)amount) * ((float)discount.DiscountPercentage)) / 100f);
+                    result = (float)amount * (float)discount.DiscountPercentage / 100f;
                 else
                 {
                     result = discount.DiscountAmount;
@@ -705,7 +666,7 @@ namespace Grand.Business.Catalog.Services.Discounts
                 result = await GetDiscountAmountProvider(discount, customer, product, amount);
             }
 
-            //validate maximum disocunt amount
+            //validate maximum discount amount
             if (discount.UsePercentage &&
                 discount.MaximumDiscountAmount.HasValue &&
                 result > discount.MaximumDiscountAmount.Value)
@@ -725,7 +686,6 @@ namespace Grand.Business.Catalog.Services.Discounts
         /// <param name="currency">currency</param>
         /// <param name="product"></param>
         /// <param name="amount">Amount</param>
-        /// <param name="discountAmount"></param>
         /// <returns>Preferred discount</returns>
         public virtual async Task<(List<ApplyDiscount> appliedDiscount, double discountAmount)> GetPreferredDiscount(
             IList<ApplyDiscount> discounts, Customer customer, Currency currency, Product product,
@@ -743,17 +703,15 @@ namespace Grand.Business.Catalog.Services.Discounts
             foreach (var applieddiscount in discounts)
             {
                 var discount = await GetDiscountById(applieddiscount.DiscountId);
-                double currentDiscountValue = await GetDiscountAmount(discount, customer, currency, product, amount);
-                if (currentDiscountValue > discountAmount)
-                {
-                    discountAmount = currentDiscountValue;
-                    appliedDiscount.Clear();
-                    appliedDiscount.Add(applieddiscount);
-                }
+                var currentDiscountValue = await GetDiscountAmount(discount, customer, currency, product, amount);
+                if (!(currentDiscountValue > discountAmount)) continue;
+                discountAmount = currentDiscountValue;
+                appliedDiscount.Clear();
+                appliedDiscount.Add(applieddiscount);
             }
             //cumulative discounts
             var cumulativeDiscounts = discounts.Where(x => x.IsCumulative).ToList();
-            if (cumulativeDiscounts.Count > 1)
+            if (cumulativeDiscounts.Count <= 1) return (appliedDiscount, discountAmount);
             {
                 double cumulativeDiscountAmount = 0;
                 foreach (var item in cumulativeDiscounts)
@@ -761,17 +719,17 @@ namespace Grand.Business.Catalog.Services.Discounts
                     var discount = await GetDiscountById(item.DiscountId);
                     cumulativeDiscountAmount += await GetDiscountAmount(discount, customer, currency, product, amount);
                 }
-                if (cumulativeDiscountAmount > discountAmount)
-                {
-                    discountAmount = cumulativeDiscountAmount;
 
-                    appliedDiscount.Clear();
-                    appliedDiscount.AddRange(cumulativeDiscounts);
-                }
+                if (!(cumulativeDiscountAmount > discountAmount)) return (appliedDiscount, discountAmount);
+                discountAmount = cumulativeDiscountAmount;
+
+                appliedDiscount.Clear();
+                appliedDiscount.AddRange(cumulativeDiscounts);
             }
 
             return (appliedDiscount, discountAmount);
         }
+
         /// <summary>
         /// Get preferred discount (with maximum discount value)
         /// </summary>
@@ -779,7 +737,6 @@ namespace Grand.Business.Catalog.Services.Discounts
         /// <param name="customer"></param>
         /// <param name="currency">currency</param>
         /// <param name="amount">Amount</param>
-        /// <param name="discountAmount"></param>
         /// <returns>Preferred discount</returns>
         public virtual async Task<(List<ApplyDiscount> appliedDiscount, double discountAmount)> GetPreferredDiscount(
             IList<ApplyDiscount> discounts,
@@ -794,7 +751,9 @@ namespace Grand.Business.Catalog.Services.Discounts
         /// Get amount from discount amount provider 
         /// </summary>
         /// <param name="discount"></param>
+        /// <param name="product"></param>
         /// <param name="amount"></param>
+        /// <param name="customer"></param>
         /// <returns></returns>
         public virtual async Task<double> GetDiscountAmountProvider(Discount discount, Customer customer, Product product, double amount)
         {
@@ -814,7 +773,7 @@ namespace Grand.Business.Catalog.Services.Discounts
         /// Get all discount amount providers
         /// </summary>
         /// <returns></returns>
-        public IList<IDiscountAmountProvider> LoadDiscountAmountProviders()
+        public virtual IList<IDiscountAmountProvider> LoadDiscountAmountProviders()
         {
             return _discountAmountProviders.ToList();
         }

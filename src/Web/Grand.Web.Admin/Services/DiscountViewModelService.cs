@@ -139,7 +139,7 @@ namespace Grand.Web.Admin.Services
                 //requirements
                 foreach (var dr in discount.DiscountRules.OrderBy(dr => dr.Id))
                 {
-                    var discountPlugin = _discountService.LoadDiscountProviderBySystemName(dr.DiscountRequirementRuleSystemName);
+                    var discountPlugin = _discountService.LoadDiscountProviderByRuleSystemName(dr.DiscountRequirementRuleSystemName);
                     var discountRequirement = discountPlugin.GetRequirementRules().Single(x => x.SystemName == dr.DiscountRequirementRuleSystemName);
                     {
                         if (discountPlugin != null)
@@ -250,12 +250,13 @@ namespace Grand.Web.Admin.Services
             string url = string.Format("{0}/{1}", storeLocation, discountRequirementRule.GetConfigurationUrl(discount.Id, discountRequirementId));
             return url;
         }
+
         public virtual async Task DeleteDiscountRequirement(DiscountRule discountRequirement, Discount discount)
         {
-            await _discountService.DeleteDiscountRequirement(discountRequirement);
             discount.DiscountRules.Remove(discountRequirement);
             await _discountService.UpdateDiscount(discount);
         }
+
         public virtual async Task<DiscountModel.AddProductToDiscountModel> PrepareProductToDiscountModel()
         {
             var model = new DiscountModel.AddProductToDiscountModel();
