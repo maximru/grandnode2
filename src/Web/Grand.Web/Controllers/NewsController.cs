@@ -7,6 +7,7 @@ using Grand.Business.Core.Utilities.Common.Security;
 using Grand.Domain.News;
 using Grand.Infrastructure;
 using Grand.Web.Commands.Models.News;
+using Grand.Web.Common.Controllers;
 using Grand.Web.Common.Filters;
 using Grand.Web.Events;
 using Grand.Web.Features.Models.News;
@@ -55,7 +56,7 @@ namespace Grand.Web.Controllers
         #endregion
 
         #region Methods
-
+        [HttpGet]
         public virtual async Task<IActionResult> List(NewsPagingFilteringModel command)
         {
             if (!_newsSettings.Enabled)
@@ -64,6 +65,7 @@ namespace Grand.Web.Controllers
             var model = await _mediator.Send(new GetNewsItemList { Command = command });
             return View(model);
         }
+        [HttpGet]
         public virtual async Task<IActionResult> NewsItem(string newsItemId)
         {
             if (!_newsSettings.Enabled)

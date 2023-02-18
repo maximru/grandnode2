@@ -17,6 +17,7 @@ using Grand.Domain.Payments;
 using Grand.Domain.Shipping;
 using Grand.Infrastructure;
 using Grand.Infrastructure.Extensions;
+using Grand.Web.Common.Controllers;
 using Grand.Web.Common.Filters;
 using Grand.Web.Extensions;
 using Grand.Web.Features.Models.Checkout;
@@ -335,6 +336,7 @@ namespace Grand.Web.Controllers
         }
 
         #endregion
+        [HttpGet]
         public virtual async Task<IActionResult> Index()
         {
             var customer = _workContext.CurrentCustomer;
@@ -372,7 +374,7 @@ namespace Grand.Web.Controllers
 
             return RedirectToRoute("Checkout");
         }
-        
+        [HttpGet]
         public virtual async Task<IActionResult> Start()
         {
             //validation
@@ -776,7 +778,7 @@ namespace Grand.Web.Controllers
                 return Json(new { error = 1, message = exc.Message });
             }
         }
-        
+        [HttpGet]
         public virtual async Task<IActionResult> GetShippingFormPartialView(string shippingOption)
         {
             var routeName = await GetShippingComputation(shippingOption).GetControllerRouteName();
@@ -920,7 +922,7 @@ namespace Grand.Web.Controllers
                 return Json(new { error = 1, message = exc.Message });
             }
         }
-        
+        [HttpGet]
         public virtual async Task<IActionResult> Completed(string orderId)
         {
             //validation
@@ -958,6 +960,7 @@ namespace Grand.Web.Controllers
             return View(model);
         }
         
+        [HttpPost]
         public virtual async Task<IActionResult> ConfirmOrder()
         {
             try
@@ -1030,7 +1033,7 @@ namespace Grand.Web.Controllers
                 return Json(new { error = 1, message = exc.Message });
             }
         }
-
+        [HttpGet]
         public virtual async Task<IActionResult> CompleteRedirectionPayment(string paymentTransactionId)
         {
             try

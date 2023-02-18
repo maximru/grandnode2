@@ -6,6 +6,10 @@ namespace Grand.Web.Models.Vendors
 {
     public class ContactVendorModel : BaseModel
     {
+        public ContactVendorModel()
+        {
+            Captcha = new CaptchaModel();
+        }
         public string VendorId { get; set; }
         public string VendorName { get; set; }
 
@@ -27,5 +31,6 @@ namespace Grand.Web.Models.Vendors
         public string Result { get; set; }
 
         public bool DisplayCaptcha { get; set; }
+        public ICaptchaValidModel Captcha { get; set; }
     }
 }

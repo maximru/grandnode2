@@ -6,6 +6,7 @@ using Grand.Domain.Common;
 using Grand.Domain.Orders;
 using Grand.Infrastructure;
 using Grand.Web.Commands.Models.Orders;
+using Grand.Web.Common.Controllers;
 using Grand.Web.Common.Filters;
 using Grand.Web.Extensions;
 using Grand.Web.Features.Models.Common;
@@ -102,7 +103,7 @@ namespace Grand.Web.Controllers
         #endregion
 
         #region Methods
-
+        [HttpGet]
         public virtual async Task<IActionResult> CustomerMerchandiseReturns()
         {
             if (!await _groupService.IsRegistered(_workContext.CurrentCustomer))
@@ -116,7 +117,7 @@ namespace Grand.Web.Controllers
 
             return View(model);
         }
-
+        [HttpGet]
         public virtual async Task<IActionResult> MerchandiseReturn(string orderId)
         {
             var order = await _orderService.GetOrderById(orderId);
@@ -178,7 +179,7 @@ namespace Grand.Web.Controllers
 
             return View(returnModel);
         }
-
+        [HttpGet]
         public virtual async Task<IActionResult> MerchandiseReturnDetails(string merchandiseReturnId)
         {
             var rr = await _merchandiseReturnService.GetMerchandiseReturnById(merchandiseReturnId);

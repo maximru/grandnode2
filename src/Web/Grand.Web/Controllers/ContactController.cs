@@ -7,12 +7,13 @@ using Grand.Domain.Media;
 using Grand.Domain.Stores;
 using Grand.Infrastructure;
 using Grand.Web.Commands.Models.Contact;
+using Grand.Web.Common.Controllers;
 using Grand.Web.Common.Extensions;
 using Grand.Web.Common.Filters;
-using Grand.Web.Controllers;
 using Grand.Web.Events;
 using Grand.Web.Models.Contact;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 public class ContactController : BasePublicController
@@ -41,7 +42,9 @@ public class ContactController : BasePublicController
 
     //available even when a store is closed
     [ClosedStore(true)]
-    public virtual async Task<IActionResult> ContactUs(
+    [HttpGet]
+    [ProducesResponseType(typeof(ContactUsModel), StatusCodes.Status200OK)]
+    public virtual async Task<IActionResult> Index(
         [FromServices] StoreInformationSettings storeInformationSettings,
         [FromServices] IPageService pageService)
     {
@@ -61,10 +64,11 @@ public class ContactController : BasePublicController
     }
 
     [HttpPost]
+    [ProducesResponseType(typeof(ContactUsModel), StatusCodes.Status200OK)]
     [AutoValidateAntiforgeryToken]
     [ClosedStore(true)]
     [DenySystemAccount]
-    public virtual async Task<IActionResult> ContactUs(
+    public virtual async Task<IActionResult> Index(
         [FromServices] StoreInformationSettings storeInformationSettings,
         [FromServices] IPageService pageService,
         ContactUsModel model)
@@ -117,6 +121,7 @@ public class ContactController : BasePublicController
     [HttpPost]
     [DenySystemAccount]
     public virtual async Task<IActionResult> UploadFileContactAttribute(string attributeId,
+        IFormFile uploadedFile, 
         [FromServices] IDownloadService downloadService,
         [FromServices] IContactAttributeService contactAttributeService)
     {
@@ -129,9 +134,7 @@ public class ContactController : BasePublicController
             });
         }
 
-        var form = await HttpContext.Request.ReadFormAsync();
-        var httpPostedFile = form.Files.FirstOrDefault();
-        if (httpPostedFile == null)
+        if (uploadedFile == null)
         {
             return Json(new {
                 success = false,
@@ -140,16 +143,14 @@ public class ContactController : BasePublicController
             });
         }
 
-        var fileBinary = httpPostedFile.GetDownloadBits();
+        var fileBinary = uploadedFile.GetDownloadBits();
 
-        const string qqFileNameParameter = "qqfilename";
-        var fileName = httpPostedFile.FileName;
-        if (string.IsNullOrEmpty(fileName) && form.ContainsKey(qqFileNameParameter))
-            fileName = form[qqFileNameParameter].ToString();
+        var fileName = uploadedFile.FileName;
+        
         //remove path (passed in IE)
         fileName = Path.GetFileName(fileName);
 
-        var contentType = httpPostedFile.ContentType;
+        var contentType = uploadedFile.ContentType;
 
         var fileExtension = Path.GetExtension(fileName);
         if (!string.IsNullOrEmpty(fileExtension))
